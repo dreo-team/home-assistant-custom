@@ -1,26 +1,25 @@
 """Dreo for device."""
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
-from hscloud.hscloudexception import HsCloudException, HsCloudAccessDeniedException, HsCloudFlowControlException
+from hscloud.hscloudexception import HsCloudException, HsCloudBusinessException, HsCloudAccessDeniedException, HsCloudFlowControlException
 
 import logging
-from .const import DOMAIN, MANAGER
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.INFO)
 
 
 class DreoEntity(Entity):
     """Representation of a base a coordinated Dreo Entity."""
 
-    def __init__(self, name, device, entry, unique_id):
+    def __init__(self, device, config_entry):
         """Initialize the coordinated Dreo Device."""
-        self._name = name
+        self._name = device.get("deviceName")
         self._device = device
-        self._config_entry = entry
+        self._config_entry = config_entry
         self._model = device.get("model")
         self._device_id = device.get("deviceSn")
-        self._unique_id = unique_id
+        self._unique_id = device.get("deviceSn")
         self._mcuFirmwareVersion = device.get("mcuFirmwareVersion")
         self._moduleFirmwareVersion = device.get("moduleFirmwareVersion")
 
@@ -51,24 +50,25 @@ class DreoEntity(Entity):
         """Call a hscluod device command handling error messages."""
         _LOGGER.info("command: {}".format(kwargs))
         try:
-            manager = self.hass.data[DOMAIN][self._config_entry.entry_id].get(MANAGER)
-            manager.update_status(self._device_id, **kwargs)
+            self._config_entry.runtime_data.client.update_status(self._device_id, **kwargs)
             return True
 
         except HsCloudException as exc:
             _LOGGER.error(mask_error)
-            raise ValueError(
-                f"{exc}"
-            )
+            return False
+
+        except HsCloudBusinessException as exc:
+            _LOGGER.error(mask_error)
+            return False
 
         except HsCloudAccessDeniedException as exc:
             _LOGGER.error(mask_error)
-            raise ValueError(
-                f"{exc}"
-            )
+            return False
 
         except HsCloudFlowControlException as exc:
             _LOGGER.error(mask_error)
-            raise ValueError(
-                f"{exc}"
-            )
+            return False
+
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.error(mask_error)
+            return False
