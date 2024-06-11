@@ -10,7 +10,7 @@ from homeassistant.util.percentage import (
     percentage_to_ranged_value,
     ranged_value_to_percentage, int_states_in_range
 )
-from .const import FAN_DEVICE
+from hscloud.const import FAN_DEVICE
 from .entity import DreoEntity
 from typing import Any
 from . import MyConfigEntry

@@ -22,21 +22,9 @@ class DreoEntity(Entity):
         self._unique_id = device.get("deviceSn")
         self._mcuFirmwareVersion = device.get("mcuFirmwareVersion")
         self._moduleFirmwareVersion = device.get("moduleFirmwareVersion")
-
-    @property
-    def unique_id(self):
-        """Return an unique ID."""
-        return self._unique_id
-
-    @property
-    def name(self):
-        """Return the name of this entity, if any."""
-        return self._name
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return the device info."""
-        device_info = DeviceInfo(
+        self._attr_unique_id = self._unique_id
+        self._attr_name = self._name
+        self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._device_id)},
             manufacturer="Dreo",
             model=self._model,
@@ -44,7 +32,6 @@ class DreoEntity(Entity):
             sw_version=self._moduleFirmwareVersion,
             hw_version=self._mcuFirmwareVersion
         )
-        return device_info
 
     def _try_command(self, mask_error, **kwargs):
         """Call a hscluod device command handling error messages."""

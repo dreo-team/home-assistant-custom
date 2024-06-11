@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from .const import DOMAIN, PLATFORMS, DEVICE_TYPE, FAN_DEVICE
+from .const import DOMAIN, PLATFORMS
+from hscloud.const import DEVICE_TYPE, FAN_DEVICE
 from hscloud.hscloud import HsCloud
 from hscloud.hscloudexception import HsCloudException, HsCloudBusinessException
 

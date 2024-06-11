@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/dreo",
-  "requirements": ["hscloud==1.0.2"],
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "requirements": ["hscloud==1.0.3"],
   "codeowners": ["@dreo-team"],
   "single_config_entry": true
 }
