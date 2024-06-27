@@ -7,6 +7,7 @@ from functools import cached_property
 from typing import Any
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.percentage import (
     percentage_to_ranged_value,
@@ -14,14 +15,15 @@ from homeassistant.util.percentage import (
 )
 from hscloud.const import DEVICE_TYPE, FAN_DEVICE
 
-from . import MyConfigEntry
+from . import DreoConfigEntry
 from .entity import DreoEntity
+from hscloud.hscloudexception import HsCloudException, HsCloudBusinessException
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
         hass: HomeAssistant,
-        config_entry: MyConfigEntry,
+        config_entry: DreoConfigEntry,
         async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up the Fan from a config entry."""
@@ -43,6 +45,7 @@ class DreoFanHA(DreoEntity, FanEntity):
     def __init__(self, device, config_entry) -> None:
         """Initialize the Dreo fan."""
         super().__init__(device, config_entry)
+        self._attr_name = None
         self._attr_preset_modes = FAN_DEVICE.get("config").get(self._model).get("preset_modes")
         self._attr_low_high_range = FAN_DEVICE.get("config").get(self._model).get("speed_range")
         self._attr_speed_count = int_states_in_range(self._attr_low_high_range)
@@ -69,21 +72,6 @@ class DreoFanHA(DreoEntity, FanEntity):
             return self._attr_speed_count
         return 6
 
-    @cached_property
-    def percentage(self) -> int | None:
-        """Return the current speed as a percentage."""
-        if hasattr(self, "_attr_percentage"):
-            return ranged_value_to_percentage(
-                FAN_DEVICE.get("config").get(self._model).get("speed_range"),
-                self._attr_percentage
-            )
-        return 0
-
-    @property
-    def available(self) -> bool:
-        """Return True if device is available."""
-        return self._attr_available
-
     def turn_on(self, **kwargs: Any) -> None:
         """Turn the device on."""
         self._try_command(
@@ -107,16 +95,18 @@ class DreoFanHA(DreoEntity, FanEntity):
 
     def set_percentage(self, percentage: int) -> None:
         """Set the speed of fan."""
-        speed = math.ceil(
-            percentage_to_ranged_value(
-                self._attr_low_high_range, percentage
+        if percentage > 0:
+            speed = math.ceil(
+                percentage_to_ranged_value(
+                    self._attr_low_high_range, percentage
+                )
             )
-        )
 
-        self._try_command(
-            "Set the speed failed.", speed=speed
-        )
-        self._attr_percentage = speed
+            self._try_command(
+                "Set the speed failed.", speed=speed
+            )
+
+        self._attr_percentage = percentage
 
     def oscillate(self, oscillating: bool) -> None:
         """Set the Oscillate of fan."""
@@ -127,13 +117,29 @@ class DreoFanHA(DreoEntity, FanEntity):
 
     def update(self) -> None:
         """Update Dreo fan."""
-        status = self._config_entry.runtime_data.client.get_status(self._device_id)
-        if status is not None:
+        try:
+            status = self._config_entry.runtime_data.client.get_status(self._device_id)
+
+        except HsCloudException as ex:
+            _LOGGER.exception("unable to connect")
+            raise ConfigEntryNotReady(f"unable to connect") from ex
+
+        except HsCloudBusinessException as ex:
+            _LOGGER.exception("invalid username or password")
+            raise ConfigEntryNotReady(f"invalid username or password") from ex
+
+        except Exception as ex:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected exception")
+            raise ConfigEntryNotReady(f"Unexpected exception") from ex
+
+        if status is None:
+            self._attr_available = False
+        else:
             self._attr_state = status.get('power_switch')
             self._attr_preset_mode = status.get('mode')
-            self._attr_percentage = status.get('speed')
+            self._attr_percentage = ranged_value_to_percentage(
+                self._attr_low_high_range,
+                status.get('speed'),
+            )
             self._attr_oscillating = status.get('oscillate')
             self._attr_available = status.get('connected')
-
-        else:
-            self._attr_available = False
