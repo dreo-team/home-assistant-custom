@@ -41,6 +41,7 @@ async def async_setup_entry(
         ]
     )
 
+
 class DreoFanHA(DreoEntity, FanEntity):
     """Dreo fan."""
 
